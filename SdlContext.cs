@@ -27,7 +27,17 @@ public class SdlContext : INativeContext
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            _nativeLibrary = NativeLibrary.Load(Path.Combine(runtimesPath, "osx", "native", "libSDL2-2.0.dylib"));
+            var local = Path.Combine(runtimesPath, "osx", "native", "libSDL2-2.0.dylib");
+            if (File.Exists(local))
+            {
+                // if you still ship the runtime, use it
+                _nativeLibrary = NativeLibrary.Load(local);
+            }
+            else
+            {
+                // otherwise let dyld find the Homebrew‐installed one
+                _nativeLibrary = NativeLibrary.Load("libSDL2-2.0.dylib");
+            }
             return;
         }
         else

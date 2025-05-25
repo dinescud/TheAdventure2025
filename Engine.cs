@@ -22,6 +22,13 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
+    private int _lives = 3;
+    private int _bombsAvoided = 0;
+    public int Lives => _lives;
+    public int BombsAvoided => _bombsAvoided;
+    
+    private int _worldWidth, _worldHeight;
+    
     public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
@@ -69,9 +76,10 @@ public class Engine
             throw new Exception("Invalid tile dimensions");
         }
 
-        _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
-            level.Height.Value * level.TileHeight.Value));
+        _worldWidth  = level.Width.Value  * level.TileWidth.Value;
+        _worldHeight = level.Height.Value * level.TileHeight.Value;
 
+        _renderer.SetWorldBounds(new Rectangle<int>(0, 0, _worldWidth, _worldHeight));
         _currentLevel = level;
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
@@ -96,6 +104,9 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        var px = Math.Clamp(_player.Position.X, 0, _worldWidth);
+        var py = Math.Clamp(_player.Position.Y, 0, _worldHeight);
+        _player.Position = (px, py);
         if (isAttacking)
         {
             _player.Attack();
@@ -120,9 +131,13 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
+        // Draw UI overlay (lives & bombs avoided) in upper-right corner
+        _renderer.DrawUI(_lives, _bombsAvoided);
+
         _renderer.PresentFrame();
     }
 
+    
     public void RenderAllObjects()
     {
         var toRemove = new List<int>();
@@ -149,7 +164,13 @@ public class Engine
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
             if (deltaX < 32 && deltaY < 32)
             {
-                _player.GameOver();
+                _lives--;
+                if (_lives <= 0)
+                    _player.GameOver();
+            }
+            else
+            {
+                _bombsAvoided++;
             }
         }
 

@@ -23,6 +23,12 @@
     </ItemGroup>
 
     <ItemGroup>
+        <!-- prevent the built‐in SDL2 from being published -->
+        <NativeAsset Remove="runtimes/osx/native/libSDL2-2.0.dylib" />
+        <NativeAsset Remove="runtimes/osx/native/libSDL2-2.0.0.dylib" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Compile Remove="Assets\Scripts\RandomBomb.script.cs" />
       <ClCompile Include="Assets\Scripts\RandomBomb.script.cs" />
     </ItemGroup>

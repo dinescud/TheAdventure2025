@@ -1,10 +1,10 @@
 using Silk.NET.Maths;
 using Silk.NET.SDL;
+using System.Runtime.InteropServices;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
-
 namespace TheAdventure;
 
 public unsafe class GameRenderer
@@ -13,21 +13,50 @@ public unsafe class GameRenderer
     private Renderer* _renderer;
     private GameWindow _window;
     private Camera _camera;
-
     private Dictionary<int, IntPtr> _texturePointers = new();
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
+    // UI resources
+    private IntPtr _font = IntPtr.Zero;
+    private int _heartTex;
+    private int _heartW;
+    private int _heartH;
+
+    [DllImport("SDL2_ttf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int TTF_Init();
+    [DllImport("SDL2_ttf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr TTF_OpenFont(string file, int ptsize);
+    [DllImport("SDL2_ttf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr TTF_RenderText_Blended(IntPtr font, string text, SDL_Color fg);
+    [DllImport("SDL2_ttf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void TTF_CloseFont(IntPtr font);
+    [DllImport("SDL2_ttf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void TTF_Quit();
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SDL_Color { public byte r, g, b, a; }
+
     public GameRenderer(Sdl sdl, GameWindow window)
     {
         _sdl = sdl;
-        
         _renderer = (Renderer*)window.CreateRenderer();
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        
         _window = window;
-        var windowSize = window.Size;
-        _camera = new Camera(windowSize.Width, windowSize.Height);
+        var size = window.Size;
+        _camera = new Camera(size.Width, size.Height);
+
+        // initialize SDL_ttf (ensure SDL2_ttf native library is installed)
+        if (TTF_Init() != 0)
+            throw new Exception("SDL2_ttf initialization failed.");
+        _font = TTF_OpenFont("Assets/arial.ttf", 16);
+        if (_font == IntPtr.Zero)
+            throw new Exception("Failed to open font.");
+
+        // load heart icon
+        _heartTex = LoadTexture("Assets/heart.png", out var td);
+        _heartW = td.Width;
+        _heartH = td.Height;
     }
 
     public void SetWorldBounds(Rectangle<int> bounds)
@@ -37,7 +66,7 @@ public unsafe class GameRenderer
 
     public void CameraLookAt(int x, int y)
     {
-        _camera.LookAt(x, y);
+        // _camera.LookAt(x, y);
     }
 
     public int LoadTexture(string fileName, out TextureData textureInfo)
@@ -100,7 +129,69 @@ public unsafe class GameRenderer
     {
         _sdl.SetRenderDrawColor(_renderer, r, g, b, a);
     }
+    
+    public void DrawUI(int lives, int bombsAvoided)
+    {
+        // const int heartSize = 16;
+        // const int spacing   = 4;
+        // const int margin    = 10;
+        // var (w, _) = _window.Size;
+        // int displayH = _heartH / 4;
+        //
+        // // ─── Draw remaining hearts (red squares here; replace with heart sprite if you have one) ───
+        // _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
+        // _sdl.SetRenderDrawColor  (_renderer, 255, 0, 0, 255);
+        // for (int i = 0; i < lives; i++)
+        // {
+        //     int x = w - margin - (i + 1) * (_window.Size.Width + 5);
+        //
+        //     RenderTexture(_heartTex,
+        //         new Rectangle<int>(0, 0, heartSize, heartSize),
+        //         new Rectangle<int>(x, margin, _window.Size.Width, displayH));
+        // }
 
+        const int spacing = 4;
+        const int margin  = 10;
+        var (w, _) = _window.Size;
+
+        // scale hearts to ¼ of their source size
+        int displayW = _heartW / 4;
+        int displayH = _heartH / 4;
+
+        // ─── draw remaining hearts ─────────────────────────────
+        _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
+        for (int i = 0; i < lives; i++)
+        {
+            // position each heart from the top‐right
+            int x = w - margin - (i + 1) * (displayW + spacing);
+            int y = margin;
+
+            // render the full texture scaled down
+            RenderTexture(_heartTex,
+                new Rectangle<int>(0, 0, _heartW, _heartH),
+                new Rectangle<int>(x, y, displayW, displayH));
+        }
+        
+        // ─── Draw bombs-avoided as yellow squares just to the left of the hearts ───
+        string txt = $"Bombs avoided: {bombsAvoided}";
+        SDL_Color c = new SDL_Color { r = 255, g = 255, b = 255, a = 255 };
+        IntPtr surf = TTF_RenderText_Blended(_font, txt, c);
+        if (surf != IntPtr.Zero)
+        {
+            Texture* tex = _sdl.CreateTextureFromSurface(_renderer, (Surface*)surf);
+            _sdl.FreeSurface((Surface*)surf);
+            uint fmt = 0; int acc = 0; int tw = 0, th = 0;
+            _sdl.QueryTexture((Texture*)tex, ref fmt, ref acc, ref tw, ref th);
+            int tx = w - margin - tw;
+            int ty = margin + displayH + 5;
+            var srcRect = new Rectangle<int>(0, 0, tw, th);
+            var dstRect = new Rectangle<int>(tx, ty, tw, th);
+            _sdl.RenderCopy(_renderer, (Texture*)tex, in srcRect, in dstRect);
+            _sdl.DestroyTexture((Texture*)tex);
+        }
+    }
+    
+    
     public void ClearScreen()
     {
         _sdl.RenderClear(_renderer);
