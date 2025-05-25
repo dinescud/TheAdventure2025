@@ -17,7 +17,6 @@ public unsafe class GameRenderer
     private Dictionary<int, TextureData> _textureData = new();
     private int _textureId;
 
-    // UI resources
     private IntPtr _font = IntPtr.Zero;
     private int _heartTex;
     private int _heartW;
@@ -46,14 +45,12 @@ public unsafe class GameRenderer
         var size = window.Size;
         _camera = new Camera(size.Width, size.Height);
 
-        // initialize SDL_ttf (ensure SDL2_ttf native library is installed)
         if (TTF_Init() != 0)
             throw new Exception("SDL2_ttf initialization failed.");
         _font = TTF_OpenFont("Assets/arial.ttf", 16);
         if (_font == IntPtr.Zero)
             throw new Exception("Failed to open font.");
 
-        // load heart icon
         _heartTex = LoadTexture("Assets/heart.png", out var td);
         _heartW = td.Width;
         _heartH = td.Height;
@@ -132,47 +129,24 @@ public unsafe class GameRenderer
     
     public void DrawUI(int lives, int bombsAvoided)
     {
-        // const int heartSize = 16;
-        // const int spacing   = 4;
-        // const int margin    = 10;
-        // var (w, _) = _window.Size;
-        // int displayH = _heartH / 4;
-        //
-        // // ─── Draw remaining hearts (red squares here; replace with heart sprite if you have one) ───
-        // _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
-        // _sdl.SetRenderDrawColor  (_renderer, 255, 0, 0, 255);
-        // for (int i = 0; i < lives; i++)
-        // {
-        //     int x = w - margin - (i + 1) * (_window.Size.Width + 5);
-        //
-        //     RenderTexture(_heartTex,
-        //         new Rectangle<int>(0, 0, heartSize, heartSize),
-        //         new Rectangle<int>(x, margin, _window.Size.Width, displayH));
-        // }
-
         const int spacing = 4;
         const int margin  = 10;
         var (w, _) = _window.Size;
 
-        // scale hearts to ¼ of their source size
         int displayW = _heartW / 4;
         int displayH = _heartH / 4;
 
-        // ─── draw remaining hearts ─────────────────────────────
         _sdl.SetRenderDrawBlendMode(_renderer, BlendMode.Blend);
         for (int i = 0; i < lives; i++)
         {
-            // position each heart from the top‐right
             int x = w - margin - (i + 1) * (displayW + spacing);
             int y = margin;
 
-            // render the full texture scaled down
             RenderTexture(_heartTex,
                 new Rectangle<int>(0, 0, _heartW, _heartH),
                 new Rectangle<int>(x, y, displayW, displayH));
         }
         
-        // ─── Draw bombs-avoided as yellow squares just to the left of the hearts ───
         string txt = $"Bombs avoided: {bombsAvoided}";
         SDL_Color c = new SDL_Color { r = 255, g = 255, b = 255, a = 255 };
         IntPtr surf = TTF_RenderText_Blended(_font, txt, c);
@@ -190,7 +164,6 @@ public unsafe class GameRenderer
             _sdl.DestroyTexture((Texture*)tex);
         }
     }
-    
     
     public void ClearScreen()
     {

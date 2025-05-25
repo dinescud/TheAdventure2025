@@ -131,7 +131,6 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
 
-        // Draw UI overlay (lives & bombs avoided) in upper-right corner
         _renderer.DrawUI(_lives, _bombsAvoided);
 
         _renderer.PresentFrame();
