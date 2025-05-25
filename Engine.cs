@@ -19,6 +19,11 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    
+    private bool _isGameOverMenu = false; 
+    public enum MenuOption { Restart, Exit }
+    private MenuOption _currentOption = MenuOption.Restart;
+
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
@@ -87,6 +92,11 @@ public class Engine
 
     public void ProcessFrame()
     {
+        if (_isGameOverMenu)
+        {
+            HandleGameOverMenuInput();
+            return;
+        }
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
@@ -125,6 +135,13 @@ public class Engine
         _renderer.SetDrawColor(0, 0, 0, 255);
         _renderer.ClearScreen();
 
+        if (_isGameOverMenu)
+        {
+            _renderer.RenderGameOverMenu(_currentOption);
+            _renderer.PresentFrame(); 
+            return;
+        }
+        
         var playerPosition = _player!.Position;
         _renderer.CameraLookAt(playerPosition.X, playerPosition.Y);
 
@@ -165,7 +182,10 @@ public class Engine
             {
                 _lives--;
                 if (_lives <= 0)
+                {
                     _player.GameOver();
+                    DoGameOver();
+                }
             }
             else
             {
@@ -234,5 +254,40 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+    
+    private void DoGameOver()
+        {
+            _player!.GameOver();
+            _isGameOverMenu = true;
+        } 
+    private void HandleGameOverMenuInput()
+    {
+        // Move selection
+            if (_input.IsUpPressed() || _input.IsLeftPressed())
+                _currentOption = MenuOption.Restart;
+        else if (_input.IsDownPressed() || _input.IsRightPressed())
+                _currentOption = MenuOption.Exit;
+            // Confirm
+                if (_input.IsKeyAPressed() || _input.IsKeyBPressed())
+            {
+                if (_currentOption == MenuOption.Restart)
+                        ResetGame();
+                else
+                    Environment.Exit(0);
+            }
+    }
+    private void ResetGame()
+    {
+        // clear all objects
+        _gameObjects.Clear();
+        _lives = 3;
+        _bombsAvoided = 0;
+        _lastUpdate = DateTimeOffset.Now;
+        _isGameOverMenu = false;
+        _currentOption = MenuOption.Restart;
+        _loadedTileSets.Clear();
+        _tileIdMap.Clear();
+        SetupWorld();
     }
 }
