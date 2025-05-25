@@ -18,6 +18,7 @@ public unsafe class GameRenderer
     private int _textureId;
 
     private IntPtr _font = IntPtr.Zero;
+    private IntPtr _menuFont = IntPtr.Zero;
     private int _heartTex;
     private int _heartW;
     private int _heartH;
@@ -50,6 +51,9 @@ public unsafe class GameRenderer
         _font = TTF_OpenFont("Assets/arial.ttf", 16);
         if (_font == IntPtr.Zero)
             throw new Exception("Failed to open font.");
+        _menuFont = TTF_OpenFont("Assets/arial.ttf", 32);
+        if (_menuFont == IntPtr.Zero)
+            throw new Exception("Failed to open menu font.");
 
         _heartTex = LoadTexture("Assets/heart.png", out var td);
         _heartW = td.Width;
@@ -173,5 +177,52 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+    
+    public void RenderGameOverMenu(object selectedOptionObj) 
+    {
+        var menu = (Engine.MenuOption) selectedOptionObj; 
+        SetDrawColor(0, 0, 0, 160);
+        _sdl.RenderFillRect(_renderer, null);
+
+        SDL_Color white = new SDL_Color { r = 255, g = 255, b = 255, a = 255 };
+        string[] options = { "Restart", "Exit" };
+        var (w, h) = _window.Size;
+        int centerX = w / 2;
+        int centerY = h / 2 - 20;
+       
+        for (int i = 0; i < options.Length; i++)
+        {
+            string txt = (i == (int)menu ? "> " : "  ") + options[i];
+            IntPtr surf = TTF_RenderText_Blended(_menuFont, txt, white);
+            if (surf == IntPtr.Zero) continue;
+           
+            Texture* tex = _sdl.CreateTextureFromSurface(_renderer, (Surface*)surf);
+            _sdl.FreeSurface((Surface*)surf);
+            uint fmt = 0;
+            int access = 0, tw = 0, th = 0;
+            _sdl.QueryTexture((Texture*)tex, ref fmt, ref access, ref tw, ref th);
+            int x = centerX - tw / 2;
+            int y = centerY + (i * (th + 20));
+            var src = new Rectangle<int>(0, 0, tw, th);
+            var dst = new Rectangle<int>(x, y, tw, th);
+            _sdl.RenderCopy(_renderer, (Texture*)tex, in src, in dst);
+            _sdl.DestroyTexture((Texture*)tex);
+            
+            string instr = "Use Arrow Up/Arrow Down to move, A to confirm";
+            IntPtr instrSurf = TTF_RenderText_Blended(_font, instr, white);
+            if (instrSurf != IntPtr.Zero)
+            {
+                Texture * iTex = _sdl.CreateTextureFromSurface(_renderer, (Surface*)instrSurf);
+                _sdl.FreeSurface((Surface*)instrSurf);
+                _sdl.QueryTexture((Texture*)tex, ref fmt, ref access, ref tw, ref th);
+                int ix = centerX - tw / 2;
+                int iy = centerY + options.Length * (th + 20) + 10;
+                var isrc = new Rectangle<int>(0, 0, tw, th);
+                var idst = new Rectangle<int>(ix, iy, tw, th);
+                _sdl.RenderCopy(_renderer, iTex, in isrc, in idst);
+                _sdl.DestroyTexture(iTex);
+            }
+        }
     }
 }

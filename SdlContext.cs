@@ -27,7 +27,7 @@ public class SdlContext : INativeContext
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            var local = Path.Combine(runtimesPath, "osx", "native", "libSDL2-2.0.dylib");
+            var local = Path.Combine(runtimesPath, "osx", "native", "libSDL2-2.0.0.dylib");
             if (File.Exists(local))
             {
                 // if you still ship the runtime, use it
